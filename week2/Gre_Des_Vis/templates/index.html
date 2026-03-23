@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html lang="ko" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gradient Descent &amp; Hooke's Law — ML Visualizer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg-base: #060b18;
+      --bg-card: rgba(15, 23, 42, 0.85);
+      --border: rgba(51, 65, 85, 0.5);
+      --text-muted: #64748b;
+      --indigo: #6366f1;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --cyan: #06b6d4;
+      --purple: #a855f7;
+      --rose: #f43f5e;
+    }
+
+    * { font-family: 'Inter', sans-serif; box-sizing: border-box; margin: 0; padding: 0; }
+    code, .mono { font-family: 'JetBrains Mono', monospace; }
+
+    body {
+      background: var(--bg-base);
+      background-image:
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(99,102,241,0.15) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 30% at 80% 60%, rgba(16,185,129,0.08) 0%, transparent 50%),
+        radial-gradient(ellipse 30% 20% at 20% 70%, rgba(168,85,247,0.06) 0%, transparent 40%);
+      min-height: 100vh;
+      color: #e2e8f0;
+    }
+
+    /* ── Grid dots background ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: radial-gradient(rgba(99,102,241,0.12) 1px, transparent 1px);
+      background-size: 32px 32px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .content-wrap { position: relative; z-index: 1; }
+
+    /* ── Gradient text ── */
+    .grad-primary {
+      background: linear-gradient(135deg, #38bdf8 0%, #818cf8 40%, #c084fc 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .grad-emerald {
+      background: linear-gradient(135deg, #34d399 0%, #06b6d4 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .grad-amber {
+      background: linear-gradient(135deg, #fbbf24 0%, #f97316 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* ── Glass card ── */
+    .glass {
+      background: var(--bg-card);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+    }
+    .glass-hover { transition: border-color 0.3s, box-shadow 0.3s; }
+    .glass-hover:hover {
+      border-color: rgba(99,102,241,0.35);
+      box-shadow: 0 0 32px rgba(99,102,241,0.12);
+    }
+
+    /* ── Tabs ── */
+    .tab-btn {
+      padding: 0.6rem 1.4rem;
+      border-radius: 10px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      transition: all 0.25s ease;
+      border: 1px solid transparent;
+      cursor: pointer;
+      background: transparent;
+      color: #64748b;
+    }
+    .tab-btn.active {
+      background: rgba(99,102,241,0.18);
+      border-color: rgba(99,102,241,0.45);
+      color: #a5b4fc;
+      box-shadow: 0 0 18px rgba(99,102,241,0.2);
+    }
+    .tab-btn:not(.active):hover {
+      background: rgba(51,65,85,0.4);
+      color: #94a3b8;
+    }
+
+    /* ── Primary button ── */
+    .btn-primary {
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      box-shadow: 0 0 20px rgba(99,102,241,0.35);
+      transition: all 0.3s ease;
+      border: 1px solid rgba(139,92,246,0.4);
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-primary::before {
+      content: '';
+      position: absolute; top: 0; left: -100%;
+      width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+      transition: left 0.5s ease;
+    }
+    .btn-primary:hover::before { left: 100%; }
+    .btn-primary:hover {
+      box-shadow: 0 0 36px rgba(99,102,241,0.55);
+      transform: translateY(-2px);
+    }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary:disabled {
+      opacity: 0.45; cursor: not-allowed;
+      transform: none; box-shadow: none;
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, #059669, #0284c7);
+      box-shadow: 0 0 20px rgba(16,185,129,0.3);
+      transition: all 0.3s ease;
+      border: 1px solid rgba(16,185,129,0.4);
+      cursor: pointer;
+    }
+    .btn-success:hover {
+      box-shadow: 0 0 32px rgba(16,185,129,0.5);
+      transform: translateY(-2px);
+    }
+    .btn-success:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    /* ── Range input ── */
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100%; height: 4px;
+      background: rgba(51,65,85,0.6);
+      border-radius: 2px; outline: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px; height: 16px;
+      background: #6366f1;
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 0 8px rgba(99,102,241,0.5);
+      transition: box-shadow 0.2s;
+    }
+    input[type=range]::-webkit-slider-thumb:hover {
+      box-shadow: 0 0 16px rgba(99,102,241,0.8);
+    }
+
+    /* ── Number input ── */
+    input[type=number] {
+      background: rgba(15,23,42,0.8);
+      border: 1px solid rgba(51,65,85,0.6);
+      color: #e2e8f0;
+      border-radius: 8px;
+      padding: 0.5rem 0.75rem;
+      width: 100%;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    input[type=number]:focus {
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+    }
+    input[type=number]::-webkit-inner-spin-button { opacity: 0.3; }
+
+    /* ── Progress bar ── */
+    .progress-track {
+      background: rgba(51,65,85,0.4);
+      height: 6px; border-radius: 3px; overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%; border-radius: 3px;
+      background: linear-gradient(90deg, #4f46e5, #7c3aed, #a855f7);
+      background-size: 200% 100%;
+      transition: width 0.4s ease;
+      animation: shimmer 2s linear infinite;
+    }
+    @keyframes shimmer {
+      0% { background-position: 100% 0; }
+      100% { background-position: -100% 0; }
+    }
+
+    /* ── Spinner ── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner { animation: spin 0.7s linear infinite; display: inline-block; }
+
+    /* ── Metric card ── */
+    .metric-card {
+      background: rgba(15,23,42,0.6);
+      border: 1px solid rgba(51,65,85,0.4);
+      border-radius: 12px;
+      padding: 1rem;
+      transition: all 0.3s ease;
+    }
+    .metric-card:hover {
+      border-color: rgba(99,102,241,0.3);
+      box-shadow: 0 4px 20px rgba(99,102,241,0.1);
+      transform: translateY(-2px);
+    }
+
+    /* ── Status badges ── */
+    .badge {
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      padding: 0.25rem 0.7rem; border-radius: 999px;
+      font-size: 0.75rem; font-weight: 600;
+    }
+    .badge-success { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(52,211,153,0.25); }
+    .badge-warning { background: rgba(245,158,11,0.15); color: #fcd34d; border: 1px solid rgba(252,211,77,0.25); }
+    .badge-info    { background: rgba(99,102,241,0.15); color: #a5b4fc; border: 1px solid rgba(165,180,252,0.25); }
+    .badge-error   { background: rgba(244,63,94,0.15);  color: #fda4af; border: 1px solid rgba(253,164,175,0.25); }
+
+    /* ── Plot image ── */
+    .plot-img {
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      cursor: zoom-in;
+      border-radius: 10px;
+    }
+    .plot-img:hover {
+      transform: scale(1.015);
+      box-shadow: 0 8px 40px rgba(99,102,241,0.25);
+    }
+
+    /* ── Lightbox ── */
+    #lightbox {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.9); backdrop-filter: blur(8px);
+      z-index: 9999; align-items: center; justify-content: center;
+    }
+    #lightbox.open { display: flex; }
+    #lightbox img {
+      max-width: 95vw; max-height: 92vh;
+      border-radius: 12px;
+      box-shadow: 0 0 80px rgba(99,102,241,0.35);
+    }
+    #lightbox-close {
+      position: absolute; top: 1.5rem; right: 1.5rem;
+      cursor: pointer; color: #94a3b8; font-size: 1.5rem;
+      background: rgba(15,23,42,0.8);
+      border-radius: 50%; width: 40px; height: 40px;
+      display: flex; align-items: center; justify-content: center;
+      border: 1px solid var(--border);
+      transition: color 0.2s, background 0.2s;
+    }
+    #lightbox-close:hover { color: white; background: rgba(99,102,241,0.3); }
+
+    /* ── Tooltip ── */
+    [data-tip] { position: relative; cursor: help; }
+    [data-tip]::after {
+      content: attr(data-tip);
+      position: absolute; bottom: calc(100% + 6px); left: 50%;
+      transform: translateX(-50%);
+      background: #1e293b; color: #e2e8f0;
+      padding: 0.35rem 0.7rem; border-radius: 6px;
+      font-size: 0.72rem; white-space: nowrap;
+      border: 1px solid var(--border);
+      pointer-events: none; opacity: 0;
+      transition: opacity 0.2s;
+      z-index: 100;
+    }
+    [data-tip]:hover::after { opacity: 1; }
+
+    /* ── Glow dot ── */
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 6px currentColor; opacity: 1; }
+      50% { box-shadow: 0 0 14px currentColor; opacity: 0.7; }
+    }
+    .glow-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      animation: pulse-glow 2s ease-in-out infinite;
+    }
+
+    /* ── Formula display ── */
+    .formula-box {
+      background: rgba(99,102,241,0.06);
+      border: 1px solid rgba(99,102,241,0.2);
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.875rem;
+      color: #c4b5fd;
+      line-height: 1.8;
+    }
+
+    /* ── Section divider ── */
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(99,102,241,0.3), transparent);
+      margin: 2rem 0;
+    }
+
+    /* ── Tab panel ── */
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── Float animation for hero ── */
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+    .float-anim { animation: float 4s ease-in-out infinite; }
+
+    /* ── Result number counter animation ── */
+    @keyframes count-up {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .count-appear { animation: count-up 0.4s ease forwards; }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed; bottom: 2rem; right: 2rem;
+      background: rgba(15,23,42,0.95); backdrop-filter: blur(12px);
+      border: 1px solid var(--border); border-radius: 12px;
+      padding: 0.875rem 1.25rem;
+      z-index: 10000; min-width: 260px;
+      transform: translateY(100px); opacity: 0;
+      transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    #toast.show { transform: translateY(0); opacity: 1; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+  </style>
+</head>
+
+<body>
+<div class="content-wrap">
+
+  <!-- ═══════════════════════════════════════════
+       HERO HEADER
+  ════════════════════════════════════════════ -->
+  <header class="relative overflow-hidden pt-16 pb-12 px-6">
+    <div class="max-w-5xl mx-auto text-center">
+
+      <!-- Decorative circles -->
+      <div class="absolute -top-20 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full
+                  bg-indigo-600/5 blur-3xl pointer-events-none"></div>
+
+      <!-- Badge -->
+      <div class="inline-flex items-center gap-2 mb-5 px-4 py-1.5 rounded-full
+                  bg-indigo-950/60 border border-indigo-500/25 text-indigo-300 text-xs font-semibold
+                  tracking-widest uppercase">
+        <span class="glow-dot bg-indigo-400" style="color:#818cf8"></span>
+        Week 2 · Machine Learning Fundamentals
+      </div>
+
+      <h1 class="text-5xl md:text-6xl font-black tracking-tight leading-none mb-4">
+        <span class="grad-primary">Gradient Descent</span>
+        <br />
+        <span class="text-slate-300 text-3xl md:text-4xl font-bold mt-2 block">
+          알고리즘이 어떻게 최솟값을 찾는지 시각화합니다
+        </span>
+      </h1>
+
+      <p class="text-slate-400 text-base max-w-2xl mx-auto mt-4 leading-relaxed">
+        손실 함수 <code class="text-indigo-300 bg-indigo-950/40 px-1.5 py-0.5 rounded">L(x) = x²</code>를
+        최소화하는 경사 하강법을 시각화하고,
+        이를 <strong class="text-emerald-400">훅의 법칙(Hooke's Law)</strong>에 적용하여
+        TensorFlow로 스프링 상수를 학습합니다.
+      </p>
+
+      <!-- Formula pills -->
+      <div class="flex flex-wrap items-center justify-center gap-3 mt-6">
+        <span class="formula-box text-sm">∂L/∂x = 2x</span>
+        <span class="text-slate-600 text-lg">→</span>
+        <span class="formula-box text-sm">x<sub>t+1</sub> = x<sub>t</sub> − η · ∇L</span>
+        <span class="text-slate-600 text-lg">→</span>
+        <span class="formula-box text-sm text-emerald-300">F = k·x (Hooke's Law)</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 pb-20 space-y-8">
+
+    <!-- ═══════════════════════════════════════════
+         TABS NAV
+    ════════════════════════════════════════════ -->
+    <div class="flex items-center gap-2 p-1.5 glass rounded-xl w-fit mx-auto">
+      <button class="tab-btn active" onclick="switchTab('gd')">
+        ⚡ Gradient Descent 시각화
+      </button>
+      <button class="tab-btn" onclick="switchTab('hooke')">
+        🔬 Hooke's Law 학습
+      </button>
+      <button class="tab-btn" onclick="switchTab('gallery')">
+        🖼️ 결과 갤러리
+      </button>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════
+         TAB 1 — GRADIENT DESCENT
+    ════════════════════════════════════════════ -->
+    <div id="tab-gd" class="tab-panel active space-y-6">
+
+      <!-- Physics explanation card -->
+      <div class="glass glass-hover p-6">
+        <div class="flex items-start gap-4">
+          <div class="w-12 h-12 rounded-xl bg-indigo-500/15 flex items-center justify-center
+                      border border-indigo-500/25 shrink-0 float-anim">
+            <span class="text-2xl">⚡</span>
+          </div>
+          <div>
+            <h2 class="text-xl font-bold text-slate-100 mb-2">경사 하강법이란?</h2>
+            <p class="text-slate-400 text-sm leading-relaxed">
+              손실 함수 <code class="text-indigo-300">L(x) = x²</code>의 기울기(gradient)를 계산하고,
+              그 반대 방향으로 조금씩 이동하면서 최솟값을 찾는 최적화 알고리즘입니다.
+              공이 산에서 굴러내려오는 것과 같습니다.
+              <strong class="text-white">학습률(Learning Rate)</strong>이 너무 크면 발산하고, 너무 작으면 느리게 수렴합니다.
+            </p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3 mt-5">
+          <div class="formula-box text-center">
+            <div class="text-xs text-slate-500 mb-1">손실 함수</div>
+            <div class="text-indigo-300 font-bold">L(x) = x²</div>
+          </div>
+          <div class="formula-box text-center">
+            <div class="text-xs text-slate-500 mb-1">그래디언트</div>
+            <div class="text-amber-300 font-bold">∇L = dL/dx = 2x</div>
+          </div>
+          <div class="formula-box text-center">
+            <div class="text-xs text-slate-500 mb-1">업데이트 규칙</div>
+            <div class="text-emerald-300 font-bold">x ← x − η · 2x</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Control panel + Result -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+        <!-- Controls -->
+        <div class="glass glass-hover p-6 space-y-5">
+          <h3 class="font-bold text-slate-200 flex items-center gap-2">
+            <span class="w-7 h-7 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400 text-sm">⚙</span>
+            파라미터 설정
+          </h3>
+
+          <!-- Start X -->
+          <div class="space-y-2">
+            <label class="text-xs font-semibold text-slate-400 flex justify-between">
+              <span data-tip="x²의 시작 위치 (음수 or 양수)">시작 위치 x₀</span>
+              <span id="start-x-val" class="text-indigo-300 mono">-4.0</span>
+            </label>
+            <input type="range" id="start-x" min="-5" max="5" step="0.5" value="-4"
+                   oninput="document.getElementById('start-x-val').textContent=parseFloat(this.value).toFixed(1)" />
+            <div class="flex justify-between text-xs text-slate-600">
+              <span>-5</span><span>0</span><span>+5</span>
+            </div>
+          </div>
+
+          <!-- Learning rate -->
+          <div class="space-y-2">
+            <label class="text-xs font-semibold text-slate-400 flex justify-between">
+              <span data-tip="너무 크면 발산, 너무 작으면 느림">학습률 η (Learning Rate)</span>
+              <span id="lr-val" class="text-amber-300 mono">0.10</span>
+            </label>
+            <input type="range" id="lr" min="0.01" max="0.95" step="0.01" value="0.10"
+                   oninput="document.getElementById('lr-val').textContent=parseFloat(this.value).toFixed(2)" />
+            <div class="flex justify-between text-xs text-slate-600">
+              <span>0.01 (Slow)</span><span>0.95 (Fast)</span>
+            </div>
+          </div>
+
+          <!-- Steps -->
+          <div class="space-y-2">
+            <label class="text-xs font-semibold text-slate-400 flex justify-between">
+              <span data-tip="경사 하강 반복 횟수">반복 횟수 (Steps)</span>
+              <span id="steps-val" class="text-cyan-300 mono">20</span>
+            </label>
+            <input type="range" id="n-steps" min="5" max="60" step="5" value="20"
+                   oninput="document.getElementById('steps-val').textContent=this.value" />
+            <div class="flex justify-between text-xs text-slate-600">
+              <span>5</span><span>60</span>
+            </div>
+          </div>
+
+          <button id="btn-gd-run" onclick="runGD()"
+                  class="btn-primary w-full py-3 rounded-xl text-white font-bold text-sm">
+            ⚡ 경사 하강 실행
+          </button>
+
+          <!-- Quick presets -->
+          <div class="space-y-1.5">
+            <p class="text-xs text-slate-500 font-semibold">빠른 실험</p>
+            <div class="flex flex-wrap gap-1.5">
+              <button onclick="setPreset(-4, 0.1, 20)" class="text-xs px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition">Optimal</button>
+              <button onclick="setPreset(-4, 0.05, 40)" class="text-xs px-2.5 py-1 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20 transition">Slow</button>
+              <button onclick="setPreset(-4, 0.5, 20)" class="text-xs px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition">Fast</button>
+              <button onclick="setPreset(-4, 0.95, 20)" class="text-xs px-2.5 py-1 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 transition">Diverge</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Metrics -->
+        <div class="lg:col-span-2 space-y-4">
+          <div id="gd-loading" class="hidden glass p-8 text-center">
+            <div class="spinner text-3xl mb-3">⚙</div>
+            <p class="text-slate-400 text-sm">경사 하강법 실행 중...</p>
+          </div>
+
+          <div id="gd-result" class="hidden space-y-4">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div class="metric-card text-center">
+                <div class="text-xs text-slate-500 mb-1">최종 x</div>
+                <div id="res-final-x" class="text-xl font-black mono grad-emerald">—</div>
+              </div>
+              <div class="metric-card text-center">
+                <div class="text-xs text-slate-500 mb-1">최종 Loss</div>
+                <div id="res-final-loss" class="text-xl font-black mono grad-amber">—</div>
+              </div>
+              <div class="metric-card text-center">
+                <div class="text-xs text-slate-500 mb-1">수렴 여부</div>
+                <div id="res-converged" class="text-xl font-black">—</div>
+              </div>
+              <div class="metric-card text-center">
+                <div class="text-xs text-slate-500 mb-1">실행 스텝</div>
+                <div id="res-steps" class="text-xl font-black mono text-cyan-300">—</div>
+              </div>
+            </div>
+
+            <!-- Step history mini chart -->
+            <div class="glass p-4">
+              <p class="text-xs font-semibold text-slate-500 mb-2">스텝별 x 경로 (처음 10 steps)</p>
+              <div id="gd-step-table" class="overflow-x-auto">
+                <table class="w-full text-xs">
+                  <thead>
+                    <tr class="text-slate-500">
+                      <th class="text-left pb-1">Step</th>
+                      <th class="text-right pb-1">x</th>
+                      <th class="text-right pb-1">Loss</th>
+                      <th class="text-right pb-1">Gradient</th>
+                    </tr>
+                  </thead>
+                  <tbody id="gd-step-tbody" class="mono text-slate-300"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div id="gd-empty" class="glass p-10 text-center">
+            <div class="text-4xl mb-3 opacity-30">⚡</div>
+            <p class="text-slate-500">파라미터를 설정하고 <strong class="text-indigo-400">경사 하강 실행</strong> 버튼을 누르세요.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- GD plots -->
+      <div id="gd-plots" class="hidden grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div class="glass p-4">
+          <p class="text-sm font-bold text-slate-300 mb-3">📈 경사 하강 경로</p>
+          <img id="plot-gd-path" src="" alt="GD Path" class="plot-img w-full rounded-lg"
+               onclick="openLightbox(this.src)" />
+          <p class="text-xs text-slate-500 mt-2 text-center">공이 산에서 굴러내려오는 경로</p>
+        </div>
+        <div class="glass p-4">
+          <p class="text-sm font-bold text-slate-300 mb-3">🔬 학습률 비교</p>
+          <img id="plot-lr-comp" src="" alt="LR Comparison" class="plot-img w-full rounded-lg"
+               onclick="openLightbox(this.src)" />
+          <p class="text-xs text-slate-500 mt-2 text-center">4가지 학습률의 수렴 비교</p>
+        </div>
+      </div>
+
+    </div><!-- /tab-gd -->
+
+
+    <!-- ═══════════════════════════════════════════
+         TAB 2 — HOOKE'S LAW
+    ════════════════════════════════════════════ -->
+    <div id="tab-hooke" class="tab-panel space-y-6">
+
+      <!-- Physics explanation -->
+      <div class="glass glass-hover p-6">
+        <div class="flex items-start gap-4">
+          <div class="w-12 h-12 rounded-xl bg-emerald-500/15 flex items-center justify-center
+                      border border-emerald-500/25 shrink-0 float-anim">
+            <span class="text-2xl">🔬</span>
+          </div>
+          <div>
+            <h2 class="text-xl font-bold text-slate-100 mb-2">훅의 법칙 (Hooke's Law)</h2>
+            <p class="text-slate-400 text-sm leading-relaxed">
+              스프링의 탄성력 <code class="text-emerald-300">F = k·x</code>에서
+              중력 <code class="text-emerald-300">F = m·g</code>를 대입하면
+              변위 <code class="text-emerald-300">x = m·g/k</code>입니다.
+              TensorFlow 선형 회귀 모델이 <strong class="text-white">경사 하강법(Adam)</strong>으로
+              스프링 상수 <code class="text-amber-300">k = 10 N/m</code>을 학습합니다.
+            </p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
+          <div class="formula-box text-center text-sm">
+            <div class="text-xs text-slate-500 mb-1">훅의 법칙</div>
+            <span class="text-emerald-300 font-bold">F = k · x</span>
+          </div>
+          <div class="formula-box text-center text-sm">
+            <div class="text-xs text-slate-500 mb-1">중력</div>
+            <span class="text-cyan-300 font-bold">F = m · g</span>
+          </div>
+          <div class="formula-box text-center text-sm">
+            <div class="text-xs text-slate-500 mb-1">변위</div>
+            <span class="text-amber-300 font-bold">x = mg / k</span>
+          </div>
+          <div class="formula-box text-center text-sm">
+            <div class="text-xs text-slate-500 mb-1">TF 모델</div>
+            <span class="text-purple-300 font-bold">y = W·x + b</span>
+          </div>
+        </div>
+
+        <!-- Parameter display -->
+        <div class="flex flex-wrap gap-3 mt-4">
+          <span class="badge badge-success">k = 10 N/m</span>
+          <span class="badge badge-info">g = 9.8 m/s²</span>
+          <span class="badge badge-warning">학습 목표: 정확도 ≥ 98%</span>
+          <span class="badge badge-info">모델: Dense(1) Linear</span>
+        </div>
+      </div>
+
+      <!-- Train + Predict split -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+        <!-- Train panel -->
+        <div class="glass glass-hover p-6 space-y-5">
+          <h3 class="font-bold text-slate-200 flex items-center gap-2">
+            <span class="w-7 h-7 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400 text-sm">🏋</span>
+            모델 학습 설정
+          </h3>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-1.5">
+              <label class="text-xs font-semibold text-slate-400" data-tip="학습 반복 횟수">에포크 (Epochs)</label>
+              <input type="number" id="epochs" value="500" min="50" max="2000" />
+            </div>
+            <div class="space-y-1.5">
+              <label class="text-xs font-semibold text-slate-400" data-tip="Adam 옵티마이저 학습률">학습률 (Adam)</label>
+              <input type="number" id="train-lr" value="0.01" min="0.0001" max="1" step="0.001" />
+            </div>
+            <div class="space-y-1.5">
+              <label class="text-xs font-semibold text-slate-400" data-tip="미니배치 크기">배치 크기</label>
+              <input type="number" id="batch-size" value="32" min="8" max="256" />
+            </div>
+            <div class="space-y-1.5">
+              <label class="text-xs font-semibold text-slate-400" data-tip="훈련 데이터 샘플 수">샘플 수</label>
+              <input type="number" id="n-samples" value="500" min="100" max="2000" />
+            </div>
+          </div>
+
+          <!-- Training progress -->
+          <div id="train-progress" class="hidden space-y-2">
+            <div class="flex justify-between text-xs text-slate-400">
+              <span>학습 중...</span>
+              <span id="train-pct">0%</span>
+            </div>
+            <div class="progress-track">
+              <div id="progress-bar" class="progress-fill" style="width:0%"></div>
+            </div>
+          </div>
+
+          <button id="btn-train" onclick="trainModel()"
+                  class="btn-success w-full py-3 rounded-xl text-white font-bold text-sm">
+            🚀 TensorFlow 모델 학습 시작
+          </button>
+
+          <!-- Train result metrics -->
+          <div id="train-result" class="hidden space-y-3">
+            <div class="divider" style="margin: 0;"></div>
+            <p class="text-xs font-semibold text-slate-400">학습 결과</p>
+            <div class="grid grid-cols-2 gap-2.5">
+              <div class="metric-card">
+                <div class="text-xs text-slate-500">R² Score</div>
+                <div id="tr-r2" class="text-lg font-black grad-emerald mono">—</div>
+              </div>
+              <div class="metric-card">
+                <div class="text-xs text-slate-500">정확도</div>
+                <div id="tr-acc" class="text-lg font-black text-amber-300 mono">—</div>
+              </div>
+              <div class="metric-card">
+                <div class="text-xs text-slate-500">최종 Loss</div>
+                <div id="tr-loss" class="text-lg font-black text-purple-300 mono">—</div>
+              </div>
+              <div class="metric-card">
+                <div class="text-xs text-slate-500">학습된 k 추정</div>
+                <div id="tr-k" class="text-lg font-black text-cyan-300 mono">—</div>
+              </div>
+            </div>
+            <!-- Accuracy bar -->
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-slate-500">정확도</span>
+                <span id="tr-acc-pct" class="text-emerald-400 font-bold">—</span>
+              </div>
+              <div class="progress-track">
+                <div id="acc-bar" class="progress-fill" style="width:0%"></div>
+              </div>
+              <div class="text-right text-xs text-slate-600 mt-0.5">목표: 98%</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Predict panel -->
+        <div class="glass glass-hover p-6 space-y-5">
+          <h3 class="font-bold text-slate-200 flex items-center gap-2">
+            <span class="w-7 h-7 rounded-lg bg-purple-500/20 flex items-center justify-center text-purple-400 text-sm">🎯</span>
+            스프링 변위 예측
+          </h3>
+
+          <!-- Spring visual -->
+          <div class="flex justify-center">
+            <svg id="spring-svg" width="140" height="180" viewBox="0 0 140 180">
+              <!-- Ceiling -->
+              <rect x="30" y="8" width="80" height="8" rx="2" fill="#475569" />
+              <line x1="20" y1="8" x2="120" y2="8" stroke="#334155" stroke-width="1" />
+              <!-- Spring coils (animated) -->
+              <path id="spring-coils" d="M70,16 Q85,26 70,36 Q55,46 70,56 Q85,66 70,76 Q55,86 70,96 Q85,106 70,116"
+                    fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" />
+              <!-- Mass block -->
+              <rect id="mass-rect" x="42" y="116" width="56" height="28" rx="5"
+                    fill="#3b82f6" fill-opacity="0.85" stroke="#6366f1" stroke-width="1" />
+              <text id="mass-label" x="70" y="134" text-anchor="middle"
+                    fill="white" font-size="11" font-family="Inter, sans-serif" font-weight="bold">? kg</text>
+              <!-- Arrow -->
+              <line id="disp-line" x1="108" y1="116" x2="108" y2="144" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="3,2" />
+              <text id="disp-label" x="112" y="134" fill="#f59e0b" font-size="9" font-family="monospace">x = ?</text>
+            </svg>
+          </div>
+
+          <!-- Mass input -->
+          <div class="space-y-2">
+            <label class="text-xs font-semibold text-slate-400 flex justify-between">
+              <span>질량 (kg)</span>
+              <span id="mass-display" class="text-purple-300 mono">2.50 kg</span>
+            </label>
+            <input type="range" id="mass-slider" min="0.1" max="10" step="0.1" value="2.5"
+                   oninput="updateMassDisplay(this.value)" />
+            <input type="number" id="mass-input" value="2.5" min="0.1" max="100" step="0.1"
+                   oninput="document.getElementById('mass-slider').value=Math.min(this.value,10);updateMassDisplay(this.value)"
+                   placeholder="직접 입력 (kg)" />
+          </div>
+
+          <button id="btn-predict" onclick="predictSpring()" disabled
+                  class="btn-primary w-full py-3 rounded-xl text-white font-bold text-sm opacity-50">
+            🎯 변위 예측
+          </button>
+
+          <!-- Prediction result -->
+          <div id="predict-result" class="hidden space-y-3">
+            <div class="divider" style="margin: 0;"></div>
+            <div class="grid grid-cols-2 gap-2.5">
+              <div class="metric-card text-center">
+                <div class="text-xs text-slate-500">예측값</div>
+                <div id="pred-val" class="text-2xl font-black grad-primary mono count-appear">—</div>
+                <div class="text-xs text-slate-600">cm</div>
+              </div>
+              <div class="metric-card text-center">
+                <div class="text-xs text-slate-500">이론값</div>
+                <div id="theo-val" class="text-2xl font-black text-emerald-400 mono count-appear">—</div>
+                <div class="text-xs text-slate-600">cm</div>
+              </div>
+              <div class="metric-card text-center">
+                <div class="text-xs text-slate-500">힘 (F = mg)</div>
+                <div id="force-val" class="text-xl font-black text-amber-300 mono">—</div>
+                <div class="text-xs text-slate-600">N</div>
+              </div>
+              <div class="metric-card text-center">
+                <div class="text-xs text-slate-500">정확도</div>
+                <div id="pred-acc" class="text-xl font-black text-purple-300 mono">—</div>
+                <div class="text-xs text-slate-600">%</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /grid -->
+
+      <!-- Hooke plots -->
+      <div id="hooke-plots" class="hidden grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div class="glass p-4">
+          <p class="text-sm font-bold text-slate-300 mb-3">📉 Loss Curve (Epoch별)</p>
+          <img id="plot-loss" src="" alt="Loss Curve" class="plot-img w-full rounded-lg"
+               onclick="openLightbox(this.src)" />
+        </div>
+        <div class="glass p-4">
+          <p class="text-sm font-bold text-slate-300 mb-3">📊 회귀 적합</p>
+          <img id="plot-regression" src="" alt="Regression Fit" class="plot-img w-full rounded-lg"
+               onclick="openLightbox(this.src)" />
+        </div>
+        <div class="glass p-4">
+          <p class="text-sm font-bold text-slate-300 mb-3">⚖ 가중치 수렴</p>
+          <img id="plot-weight" src="" alt="Weight Convergence" class="plot-img w-full rounded-lg"
+               onclick="openLightbox(this.src)" />
+        </div>
+      </div>
+
+      <!-- Prediction plot -->
+      <div id="pred-plot-wrap" class="hidden glass p-4">
+        <p class="text-sm font-bold text-slate-300 mb-3">🎯 예측 결과 시각화</p>
+        <img id="plot-pred" src="" alt="Prediction" class="plot-img w-full rounded-lg"
+             onclick="openLightbox(this.src)" />
+      </div>
+
+    </div><!-- /tab-hooke -->
+
+
+    <!-- ═══════════════════════════════════════════
+         TAB 3 — GALLERY
+    ════════════════════════════════════════════ -->
+    <div id="tab-gallery" class="tab-panel space-y-6">
+      <div class="glass p-6">
+        <h2 class="text-xl font-bold text-slate-200 mb-5 flex items-center gap-2">
+          <span class="text-2xl">🖼️</span> 생성된 PNG 파일
+        </h2>
+
+        <div id="gallery-grid" class="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div class="glass p-4 opacity-40">
+            <p class="text-sm text-slate-500 text-center py-8">실험을 실행하면 여기에 PNG 이미지가 표시됩니다.</p>
+          </div>
+        </div>
+
+        <!-- Output directory info -->
+        <div class="mt-5 formula-box text-sm">
+          <div class="text-slate-400 text-xs mb-2">📁 저장 경로:</div>
+          <div class="text-emerald-300">week2/Gre_Des_Vis/output/</div>
+          <div class="text-slate-500 text-xs mt-2">gd_path.png · lr_comparison.png · loss_curve.png · regression_fit.png · weight_convergence.png · prediction_result.png</div>
+        </div>
+      </div>
+    </div><!-- /tab-gallery -->
+
+  </main>
+
+  <!-- ── Footer ── -->
+  <footer class="border-t border-slate-800/60 py-6 px-4 text-center">
+    <p class="text-xs text-slate-600">
+      Week 2 · Gradient Descent Visualizer ·
+      <span class="text-indigo-500">TensorFlow</span> +
+      <span class="text-emerald-500">FastAPI</span> +
+      <span class="text-amber-500">TailwindCSS</span>
+    </p>
+  </footer>
+
+</div><!-- /content-wrap -->
+
+
+<!-- ── Lightbox ── -->
+<div id="lightbox" onclick="closeLightbox()">
+  <div id="lightbox-close" onclick="closeLightbox()">✕</div>
+  <img id="lightbox-img" src="" alt="" onclick="event.stopPropagation()" />
+</div>
+
+<!-- ── Toast ── -->
+<div id="toast">
+  <p id="toast-msg" class="text-sm font-medium text-slate-200"></p>
+</div>
+
+
+<!-- ════════════════════════════════════════════
+     JAVASCRIPT
+════════════════════════════════════════════ -->
+<script>
+/* ── Utility ────────────────────────────────────────────────────── */
+function $(id) { return document.getElementById(id); }
+
+function showToast(msg, type = 'info') {
+  const t = $('toast');
+  const colors = {
+    success: '#34d399', error: '#f87171',
+    warning: '#fcd34d', info: '#a5b4fc',
+  };
+  $('toast-msg').textContent = msg;
+  $('toast-msg').style.color = colors[type] || colors.info;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+function openLightbox(src) {
+  $('lightbox-img').src = src + '?t=' + Date.now();
+  $('lightbox').classList.add('open');
+}
+function closeLightbox() { $('lightbox').classList.remove('open'); }
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeLightbox();
+});
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  $('tab-' + tab).classList.add('active');
+  event.target.classList.add('active');
+}
+
+function setPreset(x, lr, steps) {
+  $('start-x').value = x;
+  $('lr').value = lr;
+  $('n-steps').value = steps;
+  $('start-x-val').textContent = parseFloat(x).toFixed(1);
+  $('lr-val').textContent = parseFloat(lr).toFixed(2);
+  $('steps-val').textContent = steps;
+}
+
+function updateMassDisplay(v) {
+  $('mass-display').textContent = parseFloat(v).toFixed(2) + ' kg';
+  $('mass-input').value = parseFloat(v).toFixed(2);
+  // Update spring visual
+  const scale = Math.min(parseFloat(v) / 5, 1.5);
+  const springY = 16 + scale * 50;
+  $('mass-rect').setAttribute('y', 116 + scale * 20);
+  $('mass-label').setAttribute('y', 130 + scale * 20);
+  $('mass-label').textContent = parseFloat(v).toFixed(1) + ' kg';
+}
+
+function addToGallery(plots) {
+  const grid = $('gallery-grid');
+  const existing = grid.querySelectorAll('.gallery-item');
+  existing.forEach(el => el.remove());
+  const first = grid.querySelector(':first-child');
+  if (first && first.classList.contains('opacity-40')) first.remove();
+
+  const names = {
+    'gd_path.png': '⚡ 경사 하강 경로',
+    'lr_comparison.png': '🔬 학습률 비교',
+    'loss_curve.png': '📉 Loss Curve',
+    'regression_fit.png': '📊 회귀 적합',
+    'weight_convergence.png': '⚖ 가중치 수렴',
+    'prediction_result.png': '🎯 예측 결과',
+  };
+
+  plots.forEach(url => {
+    const filename = url.split('/').pop();
+    const label = names[filename] || filename;
+    const div = document.createElement('div');
+    div.className = 'glass glass-hover p-4 gallery-item';
+    div.innerHTML = `
+      <p class="text-sm font-bold text-slate-300 mb-2">${label}</p>
+      <img src="${url}?t=${Date.now()}" alt="${label}"
+           class="plot-img w-full rounded-lg" onclick="openLightbox(this.src)" />
+      <p class="text-xs text-slate-600 mt-2 text-center font-mono">${filename}</p>
+    `;
+    grid.appendChild(div);
+  });
+}
+
+/* ── Gradient Descent API ────────────────────────────────────────── */
+async function runGD() {
+  const startX = parseFloat($('start-x').value);
+  const lr = parseFloat($('lr').value);
+  const steps = parseInt($('n-steps').value);
+
+  $('btn-gd-run').disabled = true;
+  $('btn-gd-run').textContent = '⚙ 실행 중...';
+  $('gd-loading').classList.remove('hidden');
+  $('gd-result').classList.add('hidden');
+  $('gd-empty').classList.add('hidden');
+  $('gd-plots').classList.add('hidden');
+
+  try {
+    const res = await fetch('/api/gd/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ start_x: startX, learning_rate: lr, n_steps: steps }),
+    });
+    const data = await res.json();
+
+    if (!data.success) throw new Error(data.error);
+
+    // Update metrics
+    $('res-final-x').textContent = data.final_x.toFixed(6);
+    $('res-final-loss').textContent = data.final_loss.toExponential(3);
+    $('res-steps').textContent = data.n_steps;
+
+    const conv = data.converged;
+    $('res-converged').innerHTML = conv
+      ? '<span class="badge badge-success">✓ 수렴</span>'
+      : '<span class="badge badge-warning">✗ 미수렴</span>';
+
+    // Step table
+    const tbody = $('gd-step-tbody');
+    tbody.innerHTML = '';
+    const hist = data.history.slice(0, 10);
+    hist.forEach((h, i) => {
+      const row = document.createElement('tr');
+      const lossClass = i === 0 ? 'text-rose-400' : i === hist.length - 1 ? 'text-emerald-400' : 'text-slate-300';
+      row.innerHTML = `
+        <td class="py-0.5 text-slate-500">${h.step}</td>
+        <td class="text-right text-indigo-300">${h.x.toFixed(5)}</td>
+        <td class="text-right ${lossClass}">${h.loss.toFixed(5)}</td>
+        <td class="text-right text-amber-300">${h.grad.toFixed(5)}</td>
+      `;
+      tbody.appendChild(row);
+    });
+
+    // Plots
+    const ts = '?t=' + Date.now();
+    $('plot-gd-path').src = data.plots.gd_path + ts;
+    $('plot-lr-comp').src = data.plots.lr_comparison + ts;
+
+    $('gd-loading').classList.add('hidden');
+    $('gd-result').classList.remove('hidden');
+    $('gd-plots').classList.remove('hidden');
+
+    addToGallery([data.plots.gd_path, data.plots.lr_comparison]);
+    showToast('경사 하강 완료! PNG 저장됨 ✓', 'success');
+  } catch (err) {
+    $('gd-loading').classList.add('hidden');
+    $('gd-empty').classList.remove('hidden');
+    showToast('오류: ' + err.message, 'error');
+  } finally {
+    $('btn-gd-run').disabled = false;
+    $('btn-gd-run').textContent = '⚡ 경사 하강 실행';
+  }
+}
+
+/* ── Hooke's Law: Train ──────────────────────────────────────────── */
+let trainedPlots = [];
+
+async function trainModel() {
+  const epochs = parseInt($('epochs').value);
+  const lr = parseFloat($('train-lr').value);
+  const bs = parseInt($('batch-size').value);
+  const ns = parseInt($('n-samples').value);
+
+  $('btn-train').disabled = true;
+  $('btn-train').textContent = '🔄 학습 중...';
+  $('train-progress').classList.remove('hidden');
+  $('train-result').classList.add('hidden');
+  $('hooke-plots').classList.add('hidden');
+
+  // Simulate progress animation
+  let pct = 0;
+  const pctEl = $('train-pct');
+  const barEl = $('progress-bar');
+  const interval = setInterval(() => {
+    pct = Math.min(pct + Math.random() * 3, 92);
+    pctEl.textContent = Math.round(pct) + '%';
+    barEl.style.width = pct + '%';
+  }, 300);
+
+  try {
+    const res = await fetch('/api/hooke/train', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        epochs, learning_rate: lr, batch_size: bs, n_samples: ns
+      }),
+    });
+    const data = await res.json();
+    clearInterval(interval);
+
+    if (!data.success) throw new Error(data.error);
+
+    // 100%
+    pctEl.textContent = '100%';
+    barEl.style.width = '100%';
+
+    // Metrics
+    $('tr-r2').textContent = data.r2_score.toFixed(4);
+    $('tr-acc').textContent = data.accuracy_pct.toFixed(2) + '%';
+    $('tr-loss').textContent = data.final_loss.toExponential(3);
+    $('tr-k').textContent = data.k_inferred.toFixed(3) + ' N/m';
+    $('tr-acc-pct').textContent = data.accuracy_pct.toFixed(2) + '%';
+    $('acc-bar').style.width = Math.min(data.accuracy_pct, 100) + '%';
+
+    // Plots
+    const ts = '?t=' + Date.now();
+    const plots = data.plots || [];
+    trainedPlots = plots;
+
+    if (plots.length >= 1) $('plot-loss').src = plots[0] + ts;
+    if (plots.length >= 2) $('plot-regression').src = plots[1] + ts;
+    if (plots.length >= 3) $('plot-weight').src = plots[2] + ts;
+    $('hooke-plots').classList.remove('hidden');
+
+    // Enable predict
+    $('btn-predict').disabled = false;
+    $('btn-predict').classList.remove('opacity-50');
+
+    $('train-result').classList.remove('hidden');
+    addToGallery(plots);
+
+    const icon = data.accuracy_pct >= 98 ? '🎉' : '⚠';
+    const type = data.accuracy_pct >= 98 ? 'success' : 'warning';
+    showToast(`${icon} 학습 완료! 정확도 ${data.accuracy_pct.toFixed(2)}%`, type);
+  } catch (err) {
+    clearInterval(interval);
+    showToast('학습 오류: ' + err.message, 'error');
+  } finally {
+    $('btn-train').disabled = false;
+    $('btn-train').textContent = '🚀 TensorFlow 모델 학습 시작';
+    setTimeout(() => $('train-progress').classList.add('hidden'), 1000);
+  }
+}
+
+/* ── Hooke's Law: Predict ────────────────────────────────────────── */
+async function predictSpring() {
+  const mass = parseFloat($('mass-input').value);
+  if (!mass || mass <= 0) { showToast('올바른 질량을 입력하세요.', 'warning'); return; }
+
+  $('btn-predict').disabled = true;
+  $('btn-predict').textContent = '⏳ 예측 중...';
+
+  try {
+    const res = await fetch('/api/hooke/predict', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mass_kg: mass }),
+    });
+    const data = await res.json();
+
+    if (!data.success) throw new Error(data.error);
+
+    $('pred-val').textContent = data.predicted_cm.toFixed(3);
+    $('theo-val').textContent = data.theoretical_cm.toFixed(3);
+    $('force-val').textContent = data.force_N.toFixed(2);
+    $('pred-acc').textContent = data.accuracy_pct.toFixed(2);
+
+    if (data.plot) {
+      $('plot-pred').src = data.plot + '?t=' + Date.now();
+      $('pred-plot-wrap').classList.remove('hidden');
+      addToGallery([...trainedPlots, data.plot]);
+    }
+
+    $('predict-result').classList.remove('hidden');
+    showToast(`예측: ${data.predicted_cm.toFixed(2)} cm (정확도 ${data.accuracy_pct.toFixed(2)}%)`, 'success');
+  } catch (err) {
+    showToast('예측 오류: ' + err.message, 'error');
+  } finally {
+    $('btn-predict').disabled = false;
+    $('btn-predict').textContent = '🎯 변위 예측';
+  }
+}
+
+/* ── Init ────────────────────────────────────────────────────────── */
+(async function init() {
+  try {
+    const r = await fetch('/api/hooke/status');
+    const d = await r.json();
+    if (d.trained) {
+      $('btn-predict').disabled = false;
+      $('btn-predict').classList.remove('opacity-50');
+      showToast('기존 학습 모델 감지됨 — 예측 가능합니다', 'info');
+    }
+  } catch (_) {}
+})();
+</script>
+</body>
+</html>
