@@ -1,6 +1,17 @@
 # week2_submission
 202312143 이민영 week2에 대한 과제 제출입니다. 
 
+## 기술 스택
+
+| 분류 | 기술 |
+|---|---|
+| Backend | FastAPI, Uvicorn |
+| Frontend | Tailwind CSS, KaTeX |
+| 시각화 | Matplotlib → PNG |
+| ML / 수치계산 | TensorFlow, NumPy |
+
+---
+
 # 01. 훅의 법칙 × TensorFlow
 
 **폴더:** `LinRegSpr/` | **포트:** `localhost:8000`
@@ -11,21 +22,6 @@
 
 sklearn 등 외부 ML 라이브러리 없이 **TensorFlow + NumPy만으로** 직접 구현했으며, 60개 샘플 데이터로 R² > 0.98 달성을 목표로 자동 재시도 학습을 수행합니다.
 
----
-
-## 결과 그래프
-
-### 회귀 피팅 결과
-![Spring Fitting](output/spring_fitting.png)
-
-### Loss 곡선
-![Loss Curve](output/loss_curve.png)
-
-### 잔차 분석
-![Residuals](output/residuals.png)
-
-### Loss Landscape & Gradient Descent Path
-![Loss Landscape](output/loss_landscape.png)
 
 ---
 
@@ -92,17 +88,6 @@ python week2/LinRegSpr/main.py
 ```bash
 uvicorn main:app --reload --port 8000
 ```
-
----
-
-## 기술 스택
-
-| 분류 | 기술 |
-|---|---|
-| Backend | FastAPI, Uvicorn |
-| Frontend | Tailwind CSS, KaTeX |
-| 시각화 | Matplotlib → PNG |
-| ML / 수치계산 | TensorFlow, NumPy |
 
 ---
 
