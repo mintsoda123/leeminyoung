@@ -1,3 +1,51 @@
+# week2_submission
+202312144 이석원, week2에 대한 과제 제출입니다. 
+
+## Week2 교육용 웹앱 시리즈
+
+## 공통 기술 스택
+
+| 분류 | 기술 |
+|------|------|
+| Backend | FastAPI, Uvicorn |
+| Frontend | Tailwind CSS, KaTeX |
+| 시각화 | Matplotlib → PNG |
+| ML/수치계산 | NumPy, TensorFlow (01번만) |
+
+> 모든 앱은 독립 서버로 실행되며 포트 8000~8003을 사용합니다.
+
+---
+
+## 01. 훅의 법칙 × TensorFlow
+
+**폴더:** `LinRegSpr/` | **포트:** `localhost:8000`
+
+> 용수철에 질량을 달면 얼마나 늘어나는가? — AI가 물리 법칙을 스스로 학습
+
+훅의 법칙 `F = kx`를 TensorFlow의 가장 단순한 신경망(`Dense(1)`)으로 학습합니다.
+이론값 k=2, L₀=10에 AI가 스스로 수렴해가는 과정을 Epoch별 Loss 그래프로 확인할 수 있습니다.
+
+### 기능
+- Epoch 수 슬라이더 조절 (100~2000)
+- 질량 입력 → 용수철 길이 예측
+- Loss 곡선 / 회귀선 / 예측 결과 그래프 PNG 저장
+
+### 핵심 개념
+
+| 개념 | 설명 |
+|------|------|
+| 선형회귀 | y = wx + b 형태로 데이터를 직선으로 근사 |
+| Dense(1) | 입력 1개 → 출력 1개 선형 변환층 |
+| MSE Loss | (예측 - 실제)² 평균, 작을수록 좋음 |
+| Adam | 학습률 자동 조정 경사하강법 |
+
+### 서버 실행
+```powershell
+python week2/LinRegSpr/main.py
+```
+
+---
+
 # 02. K-Means 군집화 × NumPy
 
 **폴더:** `UnSupClust/` | **포트:** `localhost:8001`
